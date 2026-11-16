@@ -1,0 +1,12 @@
+{
+  "name": "thunderlabs",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w api\" \"npm run dev -w web\"",
+    "test": "npm test -w api",
+    "setup": "npm install && npm run migrate -w api && npm run seed -w api"
+  }
+}
