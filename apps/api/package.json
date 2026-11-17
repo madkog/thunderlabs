@@ -15,6 +15,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@prisma/client": "^7.10.1",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^13.2.0",
     "cookie-parser": "^1.4.7",
@@ -35,6 +36,7 @@
     "@types/supertest": "^7.2.1",
     "eslint": "^10.15.0",
     "prettier": "^3.10.1",
+    "prisma": "^7.10.1",
     "supertest": "^7.3.2",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

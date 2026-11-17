@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum StockMovementReason {
+  RESTOCK
+  ORDER
+  ADJUSTMENT
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime @default(now())
+  orders       Order[]
+}
+
+model Product {
+  id             Int             @id @default(autoincrement())
+  name           String
+  description    String?
+  priceCents     Int
+  unitsInStock   Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  items          OrderItem[]
+  stockMovements StockMovement[]
+}
+
+// Append-only audit log: every change to Product.unitsInStock writes one row
+// in the same transaction. quantity is signed (+ restock, - order).
+model StockMovement {
+  id        Int                 @id @default(autoincrement())
+  productId Int
+  product   Product             @relation(fields: [productId], references: [id])
+  quantity  Int
+  reason    StockMovementReason
+  orderId   Int?
+  order     Order?              @relation(fields: [orderId], references: [id])
+  createdAt DateTime            @default(now())
+
+  @@index([productId])
+  @@index([orderId])
+}
+
+model Order {
+  id             Int             @id @default(autoincrement())
+  userId         Int
+  user           User            @relation(fields: [userId], references: [id])
+  totalCents     Int
+  createdAt      DateTime        @default(now())
+  items          OrderItem[]
+  stockMovements StockMovement[]
+
+  @@index([userId])
+}
+
+model OrderItem {
+  id             Int     @id @default(autoincrement())
+  orderId        Int
+  order          Order   @relation(fields: [orderId], references: [id])
+  productId      Int
+  product        Product @relation(fields: [productId], references: [id])
+  quantity       Int
+  unitPriceCents Int
+
+  @@index([orderId])
+  @@index([productId])
+}
