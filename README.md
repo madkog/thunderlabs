@@ -38,7 +38,7 @@ Build in this order and check each step before moving on.
 - [x] **Database:** Prisma with the base migration. Add a `.env.example`.
 - [x] **Seed data:** 3 products, 2 customers, 1 admin.
 - [x] **User roles:** user (customer) and admin.
-- [ ] **Authentication:** login for both roles with bcrypt-hashed passwords and JWT or session tokens. Protect routes by role.
+- [x] **Authentication:** login for both roles with bcrypt-hashed passwords and JWT or session tokens. Protect routes by role.
 - [ ] **Endpoints:**
   - Customer: log in, list available products with current prices, place an order, view own order history.
   - Admin: create a product, update a price, update stock.
