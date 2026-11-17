@@ -37,7 +37,7 @@ Build in this order and check each step before moving on.
 - [x] **Backend:** a separate Express API in TypeScript.
 - [x] **Database:** Prisma with the base migration. Add a `.env.example`.
 - [x] **Seed data:** 3 products, 2 customers, 1 admin.
-- [ ] **User roles:** user (customer) and admin.
+- [x] **User roles:** user (customer) and admin.
 - [ ] **Authentication:** login for both roles with bcrypt-hashed passwords and JWT or session tokens. Protect routes by role.
 - [ ] **Endpoints:**
   - Customer: log in, list available products with current prices, place an order, view own order history.
@@ -51,3 +51,7 @@ Build in this order and check each step before moving on.
 - [ ] **Mobile:** make the pages responsive.
 - [ ] **Testing:** API tests for every rule, including a concurrency test for the 2-unit limit and checks that customers are rejected from admin endpoints. Add Playwright tests for login and ordering.
 - [ ] **README:** setup steps (install, migrate, seed, run), assumptions, what you would do next, and how you used AI tools.
+
+## Trade-offs and next steps
+
+- **Roles come from the login token.** The token lasts 1 hour, so if an admin changes a user's role, it takes effect when that user's token expires. Checking the database on every request would make it immediate, at the cost of one extra query per request.
