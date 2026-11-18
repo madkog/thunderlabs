@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { ProductCard } from "@/components/store/product-card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Cancel01Icon } from "@hugeicons/core-free-icons";
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { api, ApiError, type Order, type Product } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { useUser } from "@/components/session-provider";
 
 type Feedback =
@@ -98,17 +102,41 @@ export default function StorePage() {
         </section>
       )}
 
-      <div aria-live="polite">
-        {feedback?.kind === "success" && (
-          <Alert className="border-emerald-500/30 bg-emerald-500/10">
-            <AlertDescription className="text-foreground">
-              <strong>Order placed.</strong> {describeOrder(feedback.order)}
+      {/* Below the grid, but sticky: on a phone it stays at the bottom of the
+          screen, so you see the result without scrolling. Opaque backgrounds
+          because it can sit over the cards. */}
+      <div aria-live="polite" className="sticky bottom-4 z-10">
+        {feedback && (
+          <Alert
+            variant={feedback.kind === "error" ? "destructive" : "default"}
+            className={cn(
+              "shadow-lg",
+              feedback.kind === "success" &&
+                "border-emerald-500/30 bg-emerald-950",
+            )}
+          >
+            <AlertDescription
+              className={cn(feedback.kind === "success" && "text-foreground")}
+            >
+              {feedback.kind === "success" ? (
+                <>
+                  <strong>Order placed.</strong> {describeOrder(feedback.order)}
+                </>
+              ) : (
+                feedback.message
+              )}
             </AlertDescription>
-          </Alert>
-        )}
-        {feedback?.kind === "error" && (
-          <Alert variant="destructive">
-            <AlertDescription>{feedback.message}</AlertDescription>
+            <AlertAction className="top-1/2 right-1.5 -translate-y-1/2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-10"
+                aria-label="Dismiss"
+                onClick={() => setFeedback(null)}
+              >
+                <HugeiconsIcon icon={Cancel01Icon} />
+              </Button>
+            </AlertAction>
           </Alert>
         )}
       </div>

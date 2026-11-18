@@ -43,6 +43,7 @@ export default function LoginPage() {
               </label>
               <Input
                 id="email"
+                className="h-10"
                 type="email"
                 autoComplete="email"
                 required
@@ -56,6 +57,7 @@ export default function LoginPage() {
               </label>
               <Input
                 id="password"
+                className="h-10"
                 type="password"
                 autoComplete="current-password"
                 required

@@ -66,7 +66,7 @@ Build in this order and check each step before moving on.
   - A customer can buy at most 2 units (of each product, across all their orders).
   - Stock is checked and decremented, and the order saved, in a single transaction.
 - [x] **Front end:** product list page and order form. Order history and admin actions only need to work through the API.
-- [ ] **Mobile:** make the pages responsive.
+- [x] **Mobile:** make the pages responsive.
 - [ ] **Testing:** API tests for every rule, including a concurrency test for the 2-unit limit and checks that customers are rejected from admin endpoints. Add Playwright tests for login and ordering.
 - [ ] **README:** setup steps (install, migrate, seed, run), assumptions, what you would do next, and how you used AI tools.
 
