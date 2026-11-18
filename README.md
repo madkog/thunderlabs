@@ -6,6 +6,17 @@ A small shop for limited releases: customers log in, see what's available at tod
 - **Web:** Next.js 16 + React 19, Tailwind, shadcn/ui (`apps/web`)
 - **Tests:** 68 API tests with Vitest + Supertest
 
+## A note to the General Manager
+
+The codebase represents a new online shop for your limited release products. Customers log in, see each item with its price right now and how many are left and are able to order them. Your team can add new items and change prices and stock at any time through the API, and every stock change is recorded.
+
+You mentioned two problems from past releases. Both are now blocked by the shop's server, so they can't be got around by tampering with the website:
+
+- **People buying more than the limit.** Each customer can buy at most 2 of any item, counted across all their orders. A third is refused, even if they place several orders at the same moment.
+- **Someone changing the price in their browser and paying less.** The price is always taken from our own records at the moment of the order. Any price sent from the browser is ignored, and each order keeps a record of the price actually charged.
+
+One thing it doesn't do yet: there's no screen for your team to manage items. For now that's done through a technical tool or the database directly, and a simple admin page would be the next thing to build. It also can't stop one person using several accounts to get around the limit, which should be part of our next discussion.
+
 ## Running it locally
 
 Requires **Node 24** (Prisma 7 doesn't run on Node 21 or older).
@@ -35,29 +46,29 @@ These demo passwords are written here only so reviewers can log in. In a real pr
 
 All endpoints except login return 401 without a valid login cookie. Admin endpoints return 403 for customers. Every error has the same shape: `{ "error": { "code", "message", "details"? } }`.
 
-| Method | Path                  | Who      | Body / result                                                                         |
-| ------ | --------------------- | -------- | ------------------------------------------------------------------------------------- |
-| POST   | `/auth/login`         | Anyone   | `{ email, password }`. Sets an httpOnly cookie.                                       |
-| POST   | `/auth/logout`        | Anyone   | Clears the cookie.                                                                    |
-| GET    | `/auth/me`            | Any user | The logged-in user.                                                                   |
-| GET    | `/products`           | Any user | All products with current price, stock, and `purchasedCount` for the current user.    |
-| POST   | `/orders`             | Customer | `{ items: [{ productId, quantity }] }`. Any price sent is ignored.                     |
-| GET    | `/orders`             | Customer | The customer's own orders, newest first.                                              |
-| POST   | `/products`           | Admin    | `{ name, description?, imageUrl?, priceCents, unitsInStock? }`                        |
-| PATCH  | `/products/:id/price` | Admin    | `{ priceCents }`                                                                      |
-| POST   | `/products/:id/stock` | Admin    | `{ quantity, reason }`: a signed change (`+10`, `-1`), `RESTOCK` or `ADJUSTMENT`.     |
+| Method | Path                  | Who      | Body / result                                                                      |
+| ------ | --------------------- | -------- | ---------------------------------------------------------------------------------- |
+| POST   | `/auth/login`         | Anyone   | `{ email, password }`. Sets an httpOnly cookie.                                    |
+| POST   | `/auth/logout`        | Anyone   | Clears the cookie.                                                                 |
+| GET    | `/auth/me`            | Any user | The logged-in user.                                                                |
+| GET    | `/products`           | Any user | All products with current price, stock, and `purchasedCount` for the current user. |
+| POST   | `/orders`             | Customer | `{ items: [{ productId, quantity }] }`. Any price sent is ignored.                 |
+| GET    | `/orders`             | Customer | The customer's own orders, newest first.                                           |
+| POST   | `/products`           | Admin    | `{ name, description?, imageUrl?, priceCents, unitsInStock? }`                     |
+| PATCH  | `/products/:id/price` | Admin    | `{ priceCents }`                                                                   |
+| POST   | `/products/:id/stock` | Admin    | `{ quantity, reason }`: a signed change (`+10`, `-1`), `RESTOCK` or `ADJUSTMENT`.  |
 
-## Database schema
+## Database schema, and why
 
 ```
-User          id, email (unique), passwordHash, role (CUSTOMER | ADMIN)
-Product       id, name, description?, imageUrl?, priceCents, unitsInStock
+User          id, email (unique), passwordHash, role (CUSTOMER | ADMIN), createdAt
+Product       id, name, description?, imageUrl?, priceCents, unitsInStock, createdAt, updatedAt
 Order         id, userId → User, totalCents, createdAt
 OrderItem     id, orderId → Order, productId → Product, quantity, unitPriceCents
 StockMovement id, productId → Product, quantity (signed), reason (RESTOCK | ORDER | ADJUSTMENT), orderId? → Order, createdAt
 ```
 
-Why it's shaped this way:
+### Why it's designed this way
 
 - **Money is whole cents (`Int`).** Floating-point money gives rounding errors. Dollars only appear when the web app formats a price for display.
 - **`OrderItem.unitPriceCents` copies the price at the time of the order.** Prices change during the day, so an order must record what was actually charged, not point at the product's current price. This is how rule 3's "the price charged is saved on the order" is met.
@@ -69,34 +80,45 @@ Why it's shaped this way:
 
 Migrations are in `apps/api/prisma/migrations` and the seed is in `apps/api/prisma/seed.ts`.
 
-## How the code is structured
+## How the code is structured, and why
 
 ```
 apps/api/src/
   routes/         HTTP only: read the request, call a service, set the status and cookies
   services/       Business rules: login, the order rules, stock changes. No SQL, no HTTP.
   repositories/   Data access: every Prisma query, as small named functions
+  db/client.ts    The single shared Prisma client (SQLite adapter)
   schemas/        Zod schemas for every request body and URL parameter
   middleware/     requireAuth / requireRole, rate limits, error handler
   auth/token.ts   Signing and checking the login token, and the cookie settings
+  errors.ts       AppError: the one error type services throw (status, code, message)
+  types/          Adds the logged-in user to Express's Request type
   app.ts          Wires it together (helmet, body limit, routers, error handler)
+  server.ts       Loads .env, stops if JWT_SECRET is missing, starts listening
 apps/api/tests/   API tests through the real HTTP stack and a real (test) database
 
 apps/web/src/
-  app/login/              Login page
-  app/(store)/            Pages that need a login, sharing one layout (session + header)
-  components/store/       Product card
-  components/ui/          shadcn/ui components
-  lib/api.ts              The only code that calls the API
-  proxy.ts                Sends logged-out visitors to /login before the page loads
+  app/login/                  Login page
+  app/(store)/                Pages that need a login, sharing one layout (session + header)
+    page.tsx                  Product list
+    orders/                   The customer's order history
+  components/session-provider.tsx  Holds the logged-in user for the store pages
+  components/site-header.tsx  Header with navigation and logout
+  components/store/           Product card
+  components/ui/              shadcn/ui components
+  lib/api.ts                  The only code that calls the API
+  lib/format.ts               Formats cents as dollars for display
+  proxy.ts                    Sends logged-out visitors to /login before the page loads
 ```
 
-Why:
+### Why it's structured this way
 
 - **Three layers in the API**, as the brief asks. A rule like "at most 2 per product" lives in one service function, reads as plain steps, and can be followed without reading SQL or Express code. Repository functions take an optional transaction, so a service can run several of them as one unit.
 - **Validation at the edge.** Every route parses its input with Zod before doing anything, so services only ever see valid, typed data. Unknown fields are dropped, which is also part of rule 3.
 - **Errors are thrown, not returned.** Services throw an `AppError` (status, code, message), and one error handler turns every error into the same JSON shape. Unexpected errors become a generic 500, with details logged on the server only.
 - **The web app is thin.** It shows the rules (stock, "You own 1 of 2"), but enforces nothing. The browser only talks to Next.js, which forwards `/api/*` to the API, so there's no CORS and the login cookie is same-origin.
+- **One place calls the API.** Every request from the web app goes through `lib/api.ts`, so the API's URLs, error shape and types live in one file, and a change to the API means changing one file.
+- **The app is built separately from starting it.** `app.ts` builds the Express app and `server.ts` only starts it listening. The tests import `app.ts` directly and send real HTTP requests to it with Supertest, without opening a port.
 
 ## How each business rule is enforced
 
@@ -113,12 +135,13 @@ The order schema accepts only `productId` and `quantity`, so any other field (a 
 
 **4. At most 2 units of a product per customer, across all their orders.**
 Two checks:
+
 - **One order:** a quantity over 2 is rejected (400) before anything happens.
-- **Across orders:** inside the order transaction, after taking stock and saving the order, the service adds up the customer's units of that product, *including this order*. Over 2 throws, and the whole transaction is undone. Checking *after* writing is deliberate: SQLite allows one writer at a time, so a second order placed at the same moment can't write until the first commits, and its check then sees the first order.
+- **Across orders:** inside the order transaction, after taking stock and saving the order, the service adds up the customer's units of that product, _including this order_. Over 2 throws, and the whole transaction is undone. Checking _after_ writing is deliberate: SQLite allows one writer at a time, so a second order placed at the same moment can't write until the first commits, and its check then sees the first order.
 
 Tested: 1 + 1 succeeds and then a third is refused, the limit is per customer, and 5 orders fired at the same moment give exactly 2 accepted.
 
-*Limitation:* with SQLite and one API process, Prisma also runs transactions one at a time, so the concurrency test passes but can't tell this design from a naive "check, then write". On **Postgres** (default isolation), two simultaneous orders could each count before the other commits, so I'd add a lock: `SELECT … FOR UPDATE` on the customer's row at the start of the order, or a `purchases(userId, productId, units)` row changed with a guarded update, just as stock is.
+_Limitation:_ with SQLite and one API process, Prisma also runs transactions one at a time, so the concurrency test passes but can't tell this design from a naive "check, then write". On **Postgres** (default isolation), two simultaneous orders could each count before the other commits, so I'd add a lock: `SELECT … FOR UPDATE` on the customer's row at the start of the order, or a `purchases(userId, productId, units)` row changed with a guarded update, just as stock is.
 
 **5. An order fully succeeds or fully fails.**
 Taking stock, saving the order and its lines, logging the stock movements and the limit check all run in one database transaction. Any failure (unknown product, out of stock, over the limit) throws and rolls everything back. Tested: a failed order leaves stock unchanged and no order, order line or stock movement behind, even when the failing item was the second in the order.
@@ -138,11 +161,15 @@ Zod requires an integer from 1 to 2. Tested with `0`, `-1`, `1.5`, `"1"` and `nu
 - **Prices are in AUD, tax-inclusive, in a single currency.** "Charged" means the amount recorded on the order: there's no payment processing.
 - **Stock is changed by an amount** (+10, -1), never "set to N", so two admins (or an admin and a sale) can't overwrite each other.
 - **Admin actions are API-only**, as the brief allows.
-- **Things I couldn't do and what I did instead:** I found that the Next.js `/api` proxy doesn't pass the browser's IP to the API (and passes through a fake one if a client sends it). So the API doesn't trust that header, and the login limit is keyed by email as well as IP. I also couldn't make the concurrency test prove the design on SQLite (see rule 4), so I wrote down the limitation and the Postgres fix instead of claiming more than the test shows.
+
+**Things I didn't know how to do, and what I did instead:**
+
+- **Getting the customer's real IP behind the Next.js proxy.** I checked: the `/api` rewrite doesn't pass the browser's IP to the API, and it forwards any fake `X-Forwarded-For` a client sends. I couldn't make per-IP limits reliable, so the API doesn't trust that header, and the login limit is keyed by email as well as IP.
+- **Proving the purchase limit under real concurrency on SQLite.** With one process, transactions run one at a time, so the concurrency test can't tell a safe design from an unsafe one. I wrote down that limitation and the Postgres fix (rule 4) instead of claiming more than the test shows.
 
 **Questions I'd ask the business:**
 
-1. Is the limit per release (drop) or for ever? If someone bought 2 in the summer drop, can they buy in the next one?
+1. Is the 2-unit limit per release (drop) or for ever? If someone bought 2 in one drop, can they buy in the next one?
 2. Per account, or per person? People can make extra accounts. Do we need checks on payment card, address or phone?
 3. If the price changes between a customer seeing it and pressing Buy, should we charge the new price (what happens now) or ask them to confirm?
 4. Can orders be cancelled or refunded, and should that free up the customer's limit?
@@ -157,7 +184,6 @@ Zod requires an integer from 1 to 2. Tested with `0`, `-1`, `1.5`, `"1"` and `nu
 - **Playwright end-to-end tests** for login and ordering, and CI running lint, type checks and all tests on each push.
 - **Shared rate-limit store** (Redis) and a front proxy that sets `X-Forwarded-For`, so limits work per real IP across several API instances.
 - **Session revocation:** short tokens plus a refresh token, or a server-side session table, so a role change or a ban takes effect immediately instead of when the 1-hour token expires.
-- **Front end:** TanStack Query for fetching and caching, and types shared with the API instead of repeated in `lib/api.ts`.
 
 ## Design notes and trade-offs
 
@@ -169,8 +195,6 @@ Zod requires an integer from 1 to 2. Tested with `0`, `-1`, `1.5`, `"1"` and `nu
 - **No UI tests.** The brief says they aren't needed, so the testing time went into API tests for the rules.
 
 ## How I used AI tools
-
-> **Draft. Edit this so it describes your own experience accurately before submitting.**
 
 I used **Claude Code** (Anthropic) as a pair programmer throughout, and a separate AI chat for UI design specs.
 
@@ -190,7 +214,3 @@ I used **Claude Code** (Anthropic) as a pair programmer throughout, and a separa
   - validation messages weren't readable by customers
   - the concurrency test can't prove the design on SQLite, so the README states that limitation instead of overclaiming
 - I reviewed each change before committing it in small steps (AI drafted most commit messages to my conventions), and can explain every decision.
-
-## A note to the General Manager
-
-We've built the online shop for your limited releases. Customers log in, see each item with its price right now and how many are left, and buy. Your team can add new items and change prices and stock at any time, and every stock change is recorded. The two problems you mentioned are now blocked by the system itself, not just by the website: each customer can buy **at most 2 of any item, across all their orders**, even if they place several orders at the same moment; and **the price is always taken from our records when the order is placed**, so changing the price in the browser has no effect, and the order keeps the price actually charged. One thing it doesn't do yet: there's no screen for your team to manage items. For now that's done through a technical tool, and a simple admin page would be the next thing to build. It also doesn't stop one person using several accounts to get around the limit, which we should talk about.
