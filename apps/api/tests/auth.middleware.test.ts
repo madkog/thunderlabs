@@ -5,6 +5,7 @@ import request from "supertest";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { AUTH_COOKIE, signToken } from "../src/auth/token.js";
 import { requireAuth, requireRole } from "../src/middleware/auth.js";
+import { errorHandler } from "../src/middleware/errors.js";
 
 const SECRET = "test-secret";
 
@@ -17,6 +18,7 @@ app.get("/me", requireAuth, (req, res) => {
 app.get("/admin", requireAuth, requireRole("ADMIN"), (_req, res) => {
   res.json({ ok: true });
 });
+app.use(errorHandler);
 
 const cookie = (token: string) => `${AUTH_COOKIE}=${token}`;
 const customer = () => signToken({ id: 2, role: "CUSTOMER" });

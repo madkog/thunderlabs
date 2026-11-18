@@ -60,7 +60,7 @@ Build in this order and check each step before moving on.
 - [x] **Endpoints:**
   - Customer: log in, list available products with current prices, place an order, view own order history.
   - Admin: create a product, update a price, update stock.
-- [ ] **Validation and errors:** validate all input, return consistent errors with correct status codes, add rate limiting and security headers.
+- [x] **Validation and errors:** validate all input, return consistent errors with correct status codes, add rate limiting and security headers.
 - [x] **Order rules** (server-side only):
   - The price is read from the database when the order is placed, never from the client.
   - A customer can buy at most 2 units (of each product, across all their orders).
@@ -75,3 +75,6 @@ Build in this order and check each step before moving on.
 - **Roles come from the login token.** The token lasts 1 hour, so if an admin changes a user's role, it takes effect when that user's token expires. Checking the database on every request would make it immediate, at the cost of one extra query per request.
 - **Concurrency.** Orders take stock with a conditional update (`unitsInStock >= qty`) and check the 2-unit limit after writing, all in one transaction, so they stay correct when several API processes share a database. With SQLite and one API process, Prisma also runs transactions one at a time, so the concurrency tests can't tell this design from a naive "check, then write" one. Running them against Postgres with several connections would.
 - **Multiple warehouses.** Stock is one number on `Product`, which is all the brief needs. If the business adds warehouses, I'd move it to a one-to-many `Inventory` table (`productId` + `locationId`, unique together).
+- **Rate limits are in memory.** Failed logins are limited to 5 per email per 15 minutes, and all requests to 300 per IP per minute. The counters live in the API process, so they reset on restart and aren't shared between instances. With several instances I'd use a shared store such as Redis.
+- **The Next.js proxy hides the browser's IP.** I checked: its `/api` rewrite doesn't add `X-Forwarded-For`, and it passes through any value a client sends. So the API doesn't trust that header, every browser counts as one IP, and the login limit is keyed by email as well as IP. In production I'd put a proxy in front that sets `X-Forwarded-For` (for example nginx), then enable Express's `trust proxy` for it.
+- **CSRF.** The login cookie is `SameSite=Lax`, so other sites can't send it with a POST, and the API only reads JSON bodies, which a plain HTML form can't send. A CSRF token would add another layer if the cookie policy ever had to be relaxed.

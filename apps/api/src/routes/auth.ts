@@ -2,7 +2,9 @@ import { Router } from "express";
 import { compare } from "bcryptjs";
 import { prisma } from "../db/client.js";
 import { AUTH_COOKIE, authCookieOptions, signToken } from "../auth/token.js";
+import { AppError } from "../errors.js";
 import { requireAuth } from "../middleware/auth.js";
+import { loginLimiter } from "../middleware/rateLimit.js";
 import { loginSchema } from "../schemas/auth.js";
 import { validate } from "../schemas/validate.js";
 
@@ -12,19 +14,17 @@ export const authRouter = Router();
 // long as a wrong password and response times don't reveal which emails exist.
 const DUMMY_HASH = "$2b$10$aDjsrZV4nTehISxjVeEtb.81cWY9DuLWSwUIfsEEpG1.iZfMrJCou";
 
-const INVALID_LOGIN = {
-  error: { code: "INVALID_CREDENTIALS", message: "Email or password is incorrect." },
-};
+// Created once, so its counters are shared across requests.
+const limitFailedLogins = loginLimiter();
 
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/login", limitFailedLogins, async (req, res) => {
   const { email, password } = validate(loginSchema, req.body);
   const user = await prisma.user.findUnique({ where: { email } });
   const passwordOk = await compare(password, user?.passwordHash ?? DUMMY_HASH);
 
   // Same response for an unknown email and a wrong password.
   if (!user || !passwordOk) {
-    res.status(401).json(INVALID_LOGIN);
-    return;
+    throw new AppError(401, "INVALID_CREDENTIALS", "Email or password is incorrect.");
   }
 
   res.cookie(AUTH_COOKIE, signToken({ id: user.id, role: user.role }), authCookieOptions);
@@ -46,8 +46,7 @@ authRouter.get("/me", requireAuth, async (req, res) => {
   });
   if (!user) {
     // The token is valid but the account has been deleted.
-    res.status(401).json({ error: { code: "UNAUTHENTICATED", message: "Log in to continue." } });
-    return;
+    throw new AppError(401, "UNAUTHENTICATED", "Log in to continue.");
   }
   res.json({ user });
 });
