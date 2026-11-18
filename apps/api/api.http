@@ -1,0 +1,76 @@
+# Manual API requests. Open in VS Code with the "REST Client" extension
+# and click "Send Request" above each one. Start the API first: npm run dev
+# The login requests save the cookie, so later requests are logged in.
+# Logins are from the README (seed data). Product IDs: check GET /products.
+
+@api = http://localhost:3001
+
+### Health
+GET {{api}}/health
+
+### ---------- Customer ----------
+
+### Log in as a customer
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{ "email": "alice@example.com", "password": "Customer123!" }
+
+### Who am I?
+GET {{api}}/auth/me
+
+### Products in stock, with current prices
+GET {{api}}/products
+
+### Place an order (replace the product IDs from GET /products)
+POST {{api}}/orders
+Content-Type: application/json
+
+{ "items": [{ "productId": 1, "quantity": 1 }, { "productId": 3, "quantity": 2 }] }
+
+### My order history
+GET {{api}}/orders
+
+### Customer on an admin endpoint: expect 403
+POST {{api}}/products
+Content-Type: application/json
+
+{ "name": "Nope", "priceCents": 100 }
+
+### Log out
+POST {{api}}/auth/logout
+
+### ---------- Admin ----------
+
+### Log in as admin
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{ "email": "admin@example.com", "password": "Admin123!" }
+
+### All products, including sold out
+GET {{api}}/products
+
+### Create a product
+POST {{api}}/products
+Content-Type: application/json
+
+{ "name": "Webcam", "description": "1080p", "priceCents": 5999, "unitsInStock": 10 }
+
+### Update a price
+PATCH {{api}}/products/1/price
+Content-Type: application/json
+
+{ "priceCents": 2499 }
+
+### Restock
+POST {{api}}/products/1/stock
+Content-Type: application/json
+
+{ "quantity": 10, "reason": "RESTOCK" }
+
+### Remove stock (e.g. damaged)
+POST {{api}}/products/1/stock
+Content-Type: application/json
+
+{ "quantity": -1, "reason": "ADJUSTMENT" }

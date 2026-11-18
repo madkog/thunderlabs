@@ -15,6 +15,24 @@ npm run dev                               # API on http://localhost:3001, web on
 
 To reset the data to the seed state, run `npm run seed -w api` again.
 
+## API
+
+All endpoints except login return 401 without a login cookie. Admin endpoints return 403 for customers. Errors are always `{ "error": { "code", "message", "details"? } }`. Ready-made requests are in [`apps/api/api.http`](apps/api/api.http) (VS Code REST Client).
+
+| Method | Path                  | Who      | What                                                         |
+| ------ | --------------------- | -------- | ------------------------------------------------------------ |
+| POST   | `/auth/login`         | Anyone   | `{ email, password }`. Sets an httpOnly cookie.              |
+| POST   | `/auth/logout`        | Anyone   | Clears the cookie.                                           |
+| GET    | `/auth/me`            | Any user | The logged-in user.                                          |
+| GET    | `/products`           | Any user | Products in stock with current prices (admins see all).      |
+| POST   | `/orders`             | Customer | `{ items: [{ productId, quantity }] }`. Price comes from the database. |
+| GET    | `/orders`             | Customer | Own order history, newest first.                             |
+| POST   | `/products`           | Admin    | `{ name, description?, priceCents, unitsInStock? }`          |
+| PATCH  | `/products/:id/price` | Admin    | `{ priceCents }`                                             |
+| POST   | `/products/:id/stock` | Admin    | `{ quantity, reason }`: signed change, `RESTOCK` or `ADJUSTMENT`. |
+
+Prices are integer cents, so there are no rounding errors. Stock is changed by an amount (+10, -1), never set to a number, so two admins can't overwrite each other, and every change is logged in `StockMovement`.
+
 ## Demo logins
 
 `npm run seed -w api` creates these accounts:
@@ -39,13 +57,13 @@ Build in this order and check each step before moving on.
 - [x] **Seed data:** 3 products, 2 customers, 1 admin.
 - [x] **User roles:** user (customer) and admin.
 - [x] **Authentication:** login for both roles with bcrypt-hashed passwords and JWT or session tokens. Protect routes by role.
-- [ ] **Endpoints:**
+- [x] **Endpoints:**
   - Customer: log in, list available products with current prices, place an order, view own order history.
   - Admin: create a product, update a price, update stock.
 - [ ] **Validation and errors:** validate all input, return consistent errors with correct status codes, add rate limiting and security headers.
-- [ ] **Order rules** (server-side only):
+- [x] **Order rules** (server-side only):
   - The price is read from the database when the order is placed, never from the client.
-  - A customer can buy at most 2 units.
+  - A customer can buy at most 2 units (of each product, across all their orders).
   - Stock is checked and decremented, and the order saved, in a single transaction.
 - [ ] **Front end:** product list page and order form. Order history and admin actions only need to work through the API.
 - [ ] **Mobile:** make the pages responsive.
@@ -55,3 +73,5 @@ Build in this order and check each step before moving on.
 ## Trade-offs and next steps
 
 - **Roles come from the login token.** The token lasts 1 hour, so if an admin changes a user's role, it takes effect when that user's token expires. Checking the database on every request would make it immediate, at the cost of one extra query per request.
+- **Concurrency.** Orders take stock with a conditional update (`unitsInStock >= qty`) and check the 2-unit limit after writing, all in one transaction, so they stay correct when several API processes share a database. With SQLite and one API process, Prisma also runs transactions one at a time, so the concurrency tests can't tell this design from a naive "check, then write" one. Running them against Postgres with several connections would.
+- **Multiple warehouses.** Stock is one number on `Product`, which is all the brief needs. If the business adds warehouses, I'd move it to a one-to-many `Inventory` table (`productId` + `locationId`, unique together).

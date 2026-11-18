@@ -4,6 +4,7 @@ import { prisma } from "../db/client.js";
 import { AUTH_COOKIE, authCookieOptions, signToken } from "../auth/token.js";
 import { requireAuth } from "../middleware/auth.js";
 import { loginSchema } from "../schemas/auth.js";
+import { validate } from "../schemas/validate.js";
 
 export const authRouter = Router();
 
@@ -16,19 +17,7 @@ const INVALID_LOGIN = {
 };
 
 authRouter.post("/login", async (req, res) => {
-  const parsed = loginSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({
-      error: {
-        code: "VALIDATION_ERROR",
-        message: "Email and password are required.",
-        details: parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
-      },
-    });
-    return;
-  }
-
-  const { email, password } = parsed.data;
+  const { email, password } = validate(loginSchema, req.body);
   const user = await prisma.user.findUnique({ where: { email } });
   const passwordOk = await compare(password, user?.passwordHash ?? DUMMY_HASH);
 
