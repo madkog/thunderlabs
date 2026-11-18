@@ -126,7 +126,7 @@ Taking stock, saving the order and its lines, logging the stock movements and th
 **6. Quantities must be whole numbers of 1 or more.**
 Zod requires an integer from 1 to 2. Tested with `0`, `-1`, `1.5`, `"1"` and `null`: all return 400 with a message pointing at the field.
 
-**Also protected:** stock never goes below 0, even with simultaneous orders (guarded update, tested). Failed logins are rate-limited per email. Security headers are set (helmet). JSON bodies over 10kb are rejected. An unknown email and a wrong password get the same response, and take the same time.
+**Also protected:** stock never goes below 0, even with simultaneous orders (guarded update, tested). Failed logins are rate-limited per email. Security headers are set on the API (helmet) and on the web pages (no framing, so nobody can trick a click on "Buy now"; no `X-Powered-By`). JSON bodies over 10kb are rejected. An unknown email and a wrong password get the same response, and take the same time.
 
 ## Assumptions and unknowns
 
