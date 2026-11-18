@@ -1,6 +1,8 @@
 import type { Prisma, Product } from "../../generated/prisma/client.js";
-import { prisma } from "../db/client.js";
 import { AppError } from "../errors.js";
+import { inTransaction } from "../repositories/db.js";
+import { findOrdersByUser, insertOrder, unitsOwned, type OrderWithItems } from "../repositories/orders.js";
+import { changeStockBy, findProductsByIds } from "../repositories/products.js";
 import { productNotFound } from "./products.js";
 
 /** A customer can own at most this many units of each product, across all their orders. */
@@ -14,31 +16,29 @@ type ProductsById = Map<number, Product>;
  * Places an order in one transaction: if any step fails, nothing changes.
  */
 export function placeOrder(userId: number, items: OrderItemInput[]) {
-  return prisma.$transaction(async (tx) => {
+  return inTransaction(async (tx) => {
     const products = await loadProducts(tx, items);
     await takeStock(tx, items, products);
     const order = await saveOrder(tx, userId, items, products);
-    // Checked after writing on purpose: a second order placed at the same
-    // moment can't write until this one commits, so its check sees this order.
+    // Checked after writing on purpose. SQLite allows one writer at a time, so
+    // a second order placed at the same moment can't write until this one
+    // commits, and its check then sees this order. (On Postgres this would need
+    // a row lock or a guarded counter instead; see the README.)
     await checkPurchaseLimit(tx, userId, items, products);
     return toOrderResponse(order);
   });
 }
 
 export async function listOrders(userId: number) {
-  const orders = await prisma.order.findMany({
-    where: { userId },
-    include: orderInclude,
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-  });
-  return orders.map(toOrderResponse);
+  return (await findOrdersByUser(userId)).map(toOrderResponse);
 }
 
 /** Loads the ordered products, or throws 404 if any don't exist. */
 async function loadProducts(tx: Tx, items: OrderItemInput[]): Promise<ProductsById> {
-  const products = await tx.product.findMany({
-    where: { id: { in: items.map((i) => i.productId) } },
-  });
+  const products = await findProductsByIds(
+    items.map((i) => i.productId),
+    tx,
+  );
   const byId = new Map(products.map((p) => [p.id, p]));
 
   for (const { productId } of items) {
@@ -47,17 +47,10 @@ async function loadProducts(tx: Tx, items: OrderItemInput[]): Promise<ProductsBy
   return byId;
 }
 
-/**
- * Decrements stock, or throws 409 if there isn't enough. The check and the
- * decrement are one statement, so the last unit can't be sold twice.
- */
+/** Takes the stock for each item, or throws 409 if there isn't enough. */
 async function takeStock(tx: Tx, items: OrderItemInput[], products: ProductsById) {
   for (const { productId, quantity } of items) {
-    const { count } = await tx.product.updateMany({
-      where: { id: productId, unitsInStock: { gte: quantity } },
-      data: { unitsInStock: { decrement: quantity } },
-    });
-    if (count === 0) {
+    if (!(await changeStockBy(productId, -quantity, tx))) {
       const name = products.get(productId)!.name;
       throw new AppError(409, "OUT_OF_STOCK", `Not enough ${name} in stock.`, { productId });
     }
@@ -71,32 +64,14 @@ function saveOrder(tx: Tx, userId: number, items: OrderItemInput[], products: Pr
     quantity,
     unitPriceCents: products.get(productId)!.priceCents,
   }));
-
-  return tx.order.create({
-    data: {
-      userId,
-      totalCents: lines.reduce((sum, l) => sum + l.unitPriceCents * l.quantity, 0),
-      items: { create: lines },
-      stockMovements: {
-        create: items.map(({ productId, quantity }) => ({
-          productId,
-          quantity: -quantity,
-          reason: "ORDER" as const,
-        })),
-      },
-    },
-    include: orderInclude,
-  });
+  const totalCents = lines.reduce((sum, l) => sum + l.unitPriceCents * l.quantity, 0);
+  return insertOrder({ userId, totalCents, lines }, tx);
 }
 
 /** Throws 409 if this order takes the customer over the limit for any product. */
 async function checkPurchaseLimit(tx: Tx, userId: number, items: OrderItemInput[], products: ProductsById) {
   for (const { productId, quantity } of items) {
-    const { _sum } = await tx.orderItem.aggregate({
-      where: { productId, order: { userId } },
-      _sum: { quantity: true },
-    });
-    const total = _sum.quantity ?? 0; // includes this order
+    const total = await unitsOwned(userId, productId, tx); // includes this order
     if (total > MAX_UNITS_PER_PRODUCT) {
       const alreadyBought = total - quantity;
       const name = products.get(productId)!.name;
@@ -109,19 +84,6 @@ async function checkPurchaseLimit(tx: Tx, userId: number, items: OrderItemInput[
     }
   }
 }
-
-const orderInclude = {
-  items: {
-    select: {
-      productId: true,
-      quantity: true,
-      unitPriceCents: true,
-      product: { select: { name: true } },
-    },
-  },
-} as const;
-
-type OrderWithItems = Prisma.OrderGetPayload<{ include: typeof orderInclude }>;
 
 function toOrderResponse(order: OrderWithItems) {
   return {
