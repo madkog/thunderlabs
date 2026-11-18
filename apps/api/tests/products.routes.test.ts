@@ -26,7 +26,7 @@ describe("GET /products", () => {
     const res = await request(app).get("/products").set("Cookie", customer);
     expect(res.status).toBe(200);
     expect(res.body.products).toEqual([
-      { id: mouseId, name: "Mouse", description: null, priceCents: 2999, unitsInStock: 5, purchasedCount: 0 },
+      { id: mouseId, name: "Mouse", description: null, imageUrl: null, priceCents: 2999, unitsInStock: 5, purchasedCount: 0 },
       expect.objectContaining({ name: "Sold out thing", unitsInStock: 0 }),
     ]);
   });
@@ -78,6 +78,29 @@ describe("POST /products", () => {
     const movements = await prisma.stockMovement.findMany({ where: { productId: res.body.product.id } });
     expect(movements).toMatchObject([{ quantity: 10, reason: "RESTOCK" }]);
   });
+
+  it("stores an image path or https URL", async () => {
+    for (const imageUrl of ["/products/webcam.svg", "https://cdn.example.com/webcam.png"]) {
+      const res = await request(app)
+        .post("/products")
+        .set("Cookie", admin)
+        .send({ name: "Webcam", priceCents: 5999, imageUrl });
+      expect(res.status).toBe(201);
+      expect(res.body.product.imageUrl).toBe(imageUrl);
+    }
+  });
+
+  it.each(["javascript:alert(1)", "//evil.example/x.png", "http://example.com/x.png", "data:image/svg+xml,<svg/>"])(
+    "rejects image URL %s",
+    async (imageUrl) => {
+      const res = await request(app)
+        .post("/products")
+        .set("Cookie", admin)
+        .send({ name: "Webcam", priceCents: 5999, imageUrl });
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe("VALIDATION_ERROR");
+    },
+  );
 
   it("rejects invalid input", async () => {
     for (const body of [{}, { name: "X", priceCents: -1 }, { name: "X", priceCents: 9.99 }, { name: "", priceCents: 100 }]) {

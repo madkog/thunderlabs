@@ -9,6 +9,8 @@ export type Product = {
   id: number;
   name: string;
   description: string | null;
+  /** A path on this site (e.g. /products/keyboard.svg) or an https URL. */
+  imageUrl: string | null;
   priceCents: number;
   stock: number;
   /** How many the logged-in customer has bought, across all their orders. */

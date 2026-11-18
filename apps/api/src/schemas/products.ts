@@ -6,9 +6,20 @@ export const productIdParams = z.object({
   id: z.coerce.number().int().positive(),
 });
 
+// A path on the web app ("/products/x.svg") or an https URL. Anything else,
+// such as "javascript:" or protocol-relative "//other.site", is rejected.
+const imageUrl = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((v) => (v.startsWith("/") && !v.startsWith("//")) || /^https:\/\/[^/]/.test(v), {
+    error: "Image must be a path starting with / or an https URL",
+  });
+
 export const createProductSchema = z.object({
   name: z.string().trim().min(1).max(100),
   description: z.string().trim().max(1000).optional(),
+  imageUrl: imageUrl.optional(),
   priceCents,
   unitsInStock: z.number().int().min(0).max(100_000).default(0),
 });

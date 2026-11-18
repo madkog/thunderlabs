@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Wireless mouse">
+  <ellipse cx="200" cy="252" rx="66" ry="9" fill="#000" opacity=".25"/>
+  <path d="M200 42 C 262 42, 272 104, 272 150 C 272 206, 242 246, 200 246 C 158 246, 128 206, 128 150 C 128 104, 138 42, 200 42 Z" fill="#d6dbe2" stroke="#94a3b8" stroke-width="2"/>
+  <path d="M200 42 L200 122" stroke="#94a3b8" stroke-width="2"/>
+  <path d="M130 122 C 160 130, 240 130, 270 122" fill="none" stroke="#94a3b8" stroke-width="2"/>
+  <rect x="192" y="70" width="16" height="34" rx="8" fill="#334155"/>
+  <path d="M150 70 C 156 56, 170 48, 186 46" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".5"/>
+  <circle cx="200" cy="214" r="4" fill="#38bdf8"/>
+</svg>

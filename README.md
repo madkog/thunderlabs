@@ -27,7 +27,7 @@ All endpoints except login return 401 without a login cookie. Admin endpoints re
 | GET    | `/products`           | Any user | All products with current prices, stock, and `purchasedCount` (how many the user has bought). |
 | POST   | `/orders`             | Customer | `{ items: [{ productId, quantity }] }`. Price comes from the database. |
 | GET    | `/orders`             | Customer | Own order history, newest first.                             |
-| POST   | `/products`           | Admin    | `{ name, description?, priceCents, unitsInStock? }`          |
+| POST   | `/products`           | Admin    | `{ name, description?, imageUrl?, priceCents, unitsInStock? }`          |
 | PATCH  | `/products/:id/price` | Admin    | `{ priceCents }`                                             |
 | POST   | `/products/:id/stock` | Admin    | `{ quantity, reason }`: signed change, `RESTOCK` or `ADJUSTMENT`. |
 

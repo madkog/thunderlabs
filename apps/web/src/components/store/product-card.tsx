@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, type SubmitEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,7 +61,14 @@ export function ProductCard({ product, canBuy, buying, onBuy }: Props) {
       className={cn("pt-0 shadow-sm transition-opacity", unavailable && "opacity-60")}
     >
       <div className={cn("relative flex aspect-[4/3] items-center justify-center", styles.image)}>
-        <span className="text-sm text-muted-foreground">Product image</span>
+        {product.imageUrl ? (
+          // alt="" because the name is the heading right below; reading it twice adds nothing.
+          // unoptimized: the seed images are SVGs, and admin-added https images
+          // are shown as-is rather than proxied through Next's image optimiser.
+          <Image src={product.imageUrl} alt="" fill unoptimized className="object-contain p-6" />
+        ) : (
+          <span className="text-sm text-muted-foreground">No image</span>
+        )}
         <Badge variant="secondary" className="absolute top-3 left-3 h-6 gap-1.5 bg-background/80 px-2.5 backdrop-blur">
           <span aria-hidden className={cn("size-2 rounded-full", styles.dot)} />
           {styles.label}

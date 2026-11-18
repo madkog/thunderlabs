@@ -25,12 +25,14 @@ const products = [
   {
     name: "Wireless Mouse",
     description: "Ergonomic 2.4GHz mouse",
+    imageUrl: "/products/wireless-mouse.svg",
     priceCents: 2999,
     unitsInStock: 50,
   },
   {
     name: "Mechanical Keyboard",
     description: "Tenkeyless, brown switches",
+    imageUrl: "/products/mechanical-keyboard.svg",
     priceCents: 8999,
     unitsInStock: 20,
   },
@@ -38,6 +40,7 @@ const products = [
   {
     name: "USB-C Hub",
     description: "7-in-1 with HDMI and SD card reader",
+    imageUrl: "/products/usb-c-hub.svg",
     priceCents: 4999,
     unitsInStock: 3,
   },

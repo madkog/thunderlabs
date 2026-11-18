@@ -31,6 +31,8 @@ model Product {
   id             Int             @id @default(autoincrement())
   name           String
   description    String?
+  // A path on the web app (e.g. /products/keyboard.svg) or an https URL.
+  imageUrl       String?
   priceCents     Int
   unitsInStock   Int             @default(0)
   createdAt      DateTime        @default(now())

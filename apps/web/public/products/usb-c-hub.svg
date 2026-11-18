@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="USB-C hub">
+  <ellipse cx="210" cy="206" rx="130" ry="9" fill="#000" opacity=".25"/>
+  <path d="M84 150 C 50 150, 40 120, 40 96" fill="none" stroke="#94a3b8" stroke-width="8" stroke-linecap="round"/>
+  <rect x="30" y="72" width="20" height="30" rx="6" fill="#cbd5e1"/>
+  <rect x="84" y="118" width="250" height="78" rx="22" fill="#d6dbe2" stroke="#94a3b8" stroke-width="2"/>
+  <rect x="84" y="118" width="250" height="16" rx="8" fill="#fff" opacity=".35"/>
+  <g fill="#334155">
+    <rect x="112" y="150" width="34" height="14" rx="3"/>
+    <rect x="156" y="150" width="34" height="14" rx="3"/>
+    <rect x="200" y="147" width="40" height="20" rx="4"/>
+    <rect x="250" y="152" width="22" height="10" rx="5"/>
+    <rect x="282" y="152" width="22" height="10" rx="5"/>
+  </g>
+  <circle cx="316" cy="182" r="3" fill="#f59e0b"/>
+</svg>

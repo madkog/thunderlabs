@@ -5,6 +5,7 @@ export const productFields = {
   id: true,
   name: true,
   description: true,
+  imageUrl: true,
   priceCents: true,
   unitsInStock: true,
 } as const;
@@ -31,6 +32,7 @@ export async function listProducts(userId: number) {
 export function createProduct(input: {
   name: string;
   description?: string;
+  imageUrl?: string;
   priceCents: number;
   unitsInStock: number;
 }) {
