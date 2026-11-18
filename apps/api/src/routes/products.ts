@@ -14,7 +14,7 @@ export const productsRouter = Router();
 productsRouter.use(requireAuth);
 
 productsRouter.get("/", async (req, res) => {
-  const products = await listProducts({ includeSoldOut: req.user!.role === "ADMIN" });
+  const products = await listProducts(req.user!.id);
   res.json({ products });
 });
 

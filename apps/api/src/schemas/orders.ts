@@ -7,12 +7,20 @@ export const placeOrderSchema = z.object({
   items: z
     .array(
       z.object({
-        productId: z.number().int().positive(),
-        quantity: z.number().int().min(1).max(MAX_UNITS_PER_PRODUCT),
+        productId: z.number({ error: "Choose a product" }).int().positive(),
+        // Messages are shown to the customer, so they say what to do.
+        quantity: z
+          .number({ error: "Quantity must be a number" })
+          .int({ error: "Quantity must be a whole number" })
+          .min(1, { error: "Quantity must be at least 1" })
+          .max(MAX_UNITS_PER_PRODUCT, {
+            error: `You can buy at most ${MAX_UNITS_PER_PRODUCT} of each product`,
+          }),
       }),
+      { error: "Add at least one product" },
     )
-    .min(1)
-    .max(20)
+    .min(1, { error: "Add at least one product" })
+    .max(20, { error: "An order can have at most 20 products" })
     .refine(
       (items) => new Set(items.map((i) => i.productId)).size === items.length,
       "Each product can appear only once",

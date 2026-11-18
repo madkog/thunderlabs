@@ -22,17 +22,29 @@ beforeEach(async () => {
 afterAll(() => prisma.$disconnect());
 
 describe("GET /products", () => {
-  it("shows customers only products in stock, with current prices", async () => {
+  it("shows all products, including sold out, with current prices", async () => {
     const res = await request(app).get("/products").set("Cookie", customer);
     expect(res.status).toBe(200);
     expect(res.body.products).toEqual([
-      { id: mouseId, name: "Mouse", description: null, priceCents: 2999, unitsInStock: 5 },
+      { id: mouseId, name: "Mouse", description: null, priceCents: 2999, unitsInStock: 5, purchasedCount: 0 },
+      expect.objectContaining({ name: "Sold out thing", unitsInStock: 0 }),
     ]);
   });
 
-  it("shows admins sold-out products too", async () => {
-    const res = await request(app).get("/products").set("Cookie", admin);
-    expect(res.body.products.map((p: { name: string }) => p.name)).toEqual(["Mouse", "Sold out thing"]);
+  it("includes how many of each product the customer has bought, across orders", async () => {
+    for (const quantity of [1, 1]) {
+      await request(app)
+        .post("/orders")
+        .set("Cookie", customer)
+        .send({ items: [{ productId: mouseId, quantity }] });
+    }
+
+    const mine = await request(app).get("/products").set("Cookie", customer);
+    expect(mine.body.products[0]).toMatchObject({ name: "Mouse", purchasedCount: 2, unitsInStock: 3 });
+
+    // Counts are per user: the admin hasn't bought anything.
+    const admins = await request(app).get("/products").set("Cookie", admin);
+    expect(admins.body.products[0].purchasedCount).toBe(0);
   });
 
   it("requires login", async () => {

@@ -76,6 +76,7 @@ describe("POST /orders", () => {
   it("rejects more than 2 of a product in one order", async () => {
     const res = await order(alice, [{ productId: mouse.id, quantity: 3 }]);
     expect(res.status).toBe(400);
+    expect(res.body.error.message).toBe("You can buy at most 2 of each product");
     expect(await stockOf(mouse.id)).toBe(50);
   });
 

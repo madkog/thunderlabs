@@ -9,13 +9,23 @@ export const productFields = {
   unitsInStock: true,
 } as const;
 
-/** Customers see products in stock. Admins also see sold-out ones. */
-export function listProducts({ includeSoldOut }: { includeSoldOut: boolean }) {
-  return prisma.product.findMany({
-    where: includeSoldOut ? {} : { unitsInStock: { gt: 0 } },
-    select: productFields,
-    orderBy: { name: "asc" },
-  });
+/**
+ * All products, sold-out ones included so the shop can show them as sold out.
+ * purchasedCount is how many of each the given user has bought, across all
+ * their orders (always 0 for admins, who can't order).
+ */
+export async function listProducts(userId: number) {
+  const [products, purchased] = await Promise.all([
+    prisma.product.findMany({ select: productFields, orderBy: { name: "asc" } }),
+    prisma.orderItem.groupBy({
+      by: ["productId"],
+      where: { order: { userId } },
+      _sum: { quantity: true },
+    }),
+  ]);
+
+  const countByProduct = new Map(purchased.map((p) => [p.productId, p._sum.quantity ?? 0]));
+  return products.map((p) => ({ ...p, purchasedCount: countByProduct.get(p.id) ?? 0 }));
 }
 
 export function createProduct(input: {
